@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Large model files (too big for GitHub)
+files/model/*.h5
+files/model/*.pb
+files/model/variables/
+
+# Keep model log and label classes
+!files/model/model_log.txt
+!files/model/label_classes.npy
+
+# Dataset images (very large)
+files/dataset/
+data/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log

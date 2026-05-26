@@ -1,0 +1,1 @@
+20260509_182234 | acc: 88.51% | loss: 0.4410 | samples: 4096 | classes: 28 | file: asl_model_20260509_182234.h5
