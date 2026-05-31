@@ -138,7 +138,7 @@ def load_model_and_classes():
     """
     Try to load the advanced fusion model first, fall back to old model.
     """
-    model_dir = Path("model")
+    model_dir = Path("files/model")
 
     # 1. Try fusion model
     fusion_path = model_dir / "asl_fusion_model.h5"

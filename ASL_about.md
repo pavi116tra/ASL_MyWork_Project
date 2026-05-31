@@ -16,8 +16,9 @@ This is an **American Sign Language (ASL) Hand Gesture Recognition** system that
 | Goal | Description |
 |---|---|
 | Detect | Recognize 26 ASL alphabet letters (A–Z) + `space`, `delete` |
-| Accuracy | Achieved **88.51%** validation accuracy |
+| Accuracy | Achieved **88.51%** validation accuracy (original model) |
 | Interface | Live split-screen webcam app with CAPTURE → CONFIRM → sentence builder flow |
+| Advanced | Fusion model pipeline with 41-dim features + image CNN (optional upgrade) |
 
 ---
 
@@ -25,33 +26,26 @@ This is an **American Sign Language (ASL) Hand Gesture Recognition** system that
 
 ```
 Gesture_ASL_Regconization-main/
-├── Untitled23.ipynb              ← Jupyter notebook (training experiments)
-├── asl_webcam.py                 ← Original basic webcam script
-├── setup_and_run_asl.ps1         ← PowerShell auto-setup script
-├── kaggle.json                   ← Kaggle API credentials (for dataset download)
+│
+├── ⭐ asl_app.py                  ← MAIN APP (advanced fusion, split-screen UI)
+├── feature_extractor.py           ← 41-dim advanced feature extractor
+├── fusion_model.py                ← Dual-input fusion model architecture
+├── augmentation.py                ← Image + landmark augmentation pipeline
+├── collect_data_advanced.py       ← Collect training images + landmarks
+├── train_advanced.py              ← Advanced training pipeline (fusion model)
+├── setup_and_run_asl.ps1          ← PowerShell auto-setup script
+├── kaggle.json                    ← Kaggle API credentials (dataset download)
+├── Untitled23.ipynb               ← Jupyter notebook (training experiments)
 │
 └── files/
-    ├── ⭐ asl_app_pro.py          ← MAIN APP (split-screen, CAPTURE/CONFIRM)
-    ├── asl_sentence_builder.py   ← Older full-featured sentence builder app
-    ├── asl_app_mediapipe.py      ← Earlier MediaPipe-only version
-    ├── asl_app_mobilenetv2.py    ← MobileNetV2 image classifier version
-    ├── asl_app_mobilenetv2_FIXED.py ← Fixed MobileNetV2 version
+    ├── setup_data.py              ← Download/organise Kaggle dataset
     │
-    ├── extract_landmarks.py      ← Step 1: Extract 93-dim features from dataset
-    ├── train_mediapipe.py        ← Step 2: Train the Dense Neural Network model
-    ├── evaluate_accuracy.py      ← Step 3: Evaluate and test the trained model
-    ├── setup_data.py             ← Download/organize Kaggle dataset
-    │
-    ├── asl_mediapipe_dense.h5    ← Saved model (root-level backup)
-    │
-    ├── model/
-    │   ├── asl_model_20260509_182234.h5  ← Best trained model (88.51% acc)
-    │   ├── asl_dense_model_BEST.h5       ← Copy always pointing to best
-    │   ├── label_classes.npy             ← 28 class labels (A-Z + space + delete)
-    │   ├── labels_20260509_182234.npy    ← Versioned labels backup
-    │   └── model_log.txt                 ← Training log with accuracy records
-    │
-    └── test_*.py                 ← Debug/test scripts (mp, upb, crop tests)
+    └── model/
+        ├── asl_model_20260509_182234.h5  ← Best trained model (88.51% acc)
+        ├── asl_dense_model_BEST.h5       ← Copy always pointing to best
+        ├── label_classes.npy             ← 28 class labels (A-Z + space + delete)
+        ├── labels_20260509_182234.npy    ← Versioned labels backup
+        └── model_log.txt                 ← Training log with accuracy records
 ```
 
 ---
@@ -60,48 +54,42 @@ Gesture_ASL_Regconization-main/
 
 | File | Importance | What It Does |
 |---|---|---|
-| `files/asl_app_pro.py` | 🔴 CRITICAL | **Main application** — split-screen UI, CAPTURE/CONFIRM/DELETE flow |
-| `files/extract_landmarks.py` | 🔴 CRITICAL | Converts dataset images → 93-dim feature vectors (.npy files) |
-| `files/train_mediapipe.py` | 🔴 CRITICAL | Trains the Dense Neural Network on extracted landmarks |
-| `files/model/asl_model_*.h5` | 🔴 CRITICAL | Trained model weights — needed to run the app |
+| `asl_app.py` | 🔴 CRITICAL | **Main application** — advanced fusion app, split-screen UI, CAPTURE/CONFIRM/DELETE, temporal smoothing, hand quality scoring |
+| `feature_extractor.py` | 🔴 CRITICAL | Extracts **41-dim** advanced geometric features (joint angles, curl, distances, wrist angle) |
+| `fusion_model.py` | 🔴 CRITICAL | Builds the dual-input fusion model (41-dim landmarks + 128×128 cropped hand image CNN) |
+| `train_advanced.py` | 🔴 CRITICAL | Full training pipeline: load, augment, train fusion model, hard negative mining |
+| `augmentation.py` | 🔴 CRITICAL | 15× data augmentation for both images and landmarks |
+| `collect_data_advanced.py` | 🟠 IMPORTANT | Collects training images + pre-extracts landmark features per frame |
+| `files/model/asl_model_*.h5` | 🟠 IMPORTANT | Trained model weights — needed to run the app |
 | `files/model/label_classes.npy` | 🟠 IMPORTANT | Maps model output indices to letter labels (A, B, C…) |
-| `files/asl_sentence_builder.py` | 🟡 USEFUL | Older version of the app with hold-timer UX |
-| `files/evaluate_accuracy.py` | 🟡 USEFUL | Run to check model performance on test data |
+| `files/setup_data.py` | 🟡 USEFUL | Utility script to download/organize Kaggle dataset |
 | `setup_and_run_asl.ps1` | 🟢 HELPER | Auto-installs dependencies and launches the app |
 
 ---
 
 ## 📁 Each File — What It Does
 
-### 🔵 Core Application
-| File | Description |
-|---|---|
-| **`asl_app_pro.py`** | The final, polished app. Split-screen layout: LEFT = live webcam with hand skeleton, RIGHT = captured photo. When user presses **C**, snapshot is taken and model detects the letter. Result shown below both panels as `A — 99% accuracy`. CONFIRM adds it to word, DELETE discards. |
-| **`asl_sentence_builder.py`** | Earlier version. Uses a hold-timer approach (hold sign steady for 1.5s → auto-detects → SPACE to confirm). Fully functional but replaced by `asl_app_pro.py`. |
-| **`asl_webcam.py`** | The original very basic webcam script. No sentence builder, just raw detection. |
+### 🔵 Core Application (Root Level)
 
-### 🔵 Data Pipeline
 | File | Description |
 |---|---|
-| **`setup_data.py`** | Downloads the ASL dataset from Kaggle using the API. Organises into `data/train/` and `data/val/` folders. |
-| **`extract_landmarks.py`** | Reads each image from the dataset, runs MediaPipe to detect the hand, then extracts a **93-dimensional feature vector** (landmarks + angles + distances + thumb position + pinch gaps). Saves one `.npy` file per class in `data/features/`. |
-| **`train_mediapipe.py`** | Loads all `.npy` feature files, trains a Dense Neural Network (256→128→64→n_classes), uses oversampling on difficult classes (A/S/E/T/M/N/C/O), saves the model and logs accuracy. |
-| **`evaluate_accuracy.py`** | Loads the best model and runs it on validation/test images to measure accuracy per class. |
+| **`asl_app.py`** | The upgraded main app. Uses the **advanced fusion model** (41-dim features). Split-screen layout: LEFT = live webcam with hand skeleton, RIGHT = captured photo. Temporal smoothing (majority vote over 7 frames), hand quality scoring (GOOD/PARTIAL/POOR), top-3 predictions with confidence bar graphs, CAPTURE/CONFIRM/DELETE flow. Falls back to 93-dim model if no fusion model is found. |
 
-### 🔵 Alternative Models (Experimental)
-| File | Description |
-|---|---|
-| **`asl_app_mobilenetv2.py`** | Attempted to use MobileNetV2 (image-based CNN) instead of MediaPipe landmarks. |
-| **`asl_app_mobilenetv2_FIXED.py`** | Fixed version of MobileNetV2 approach with better preprocessing. |
-| **`train_mobilenetv2.py`** | Training script for MobileNetV2 — fine-tunes the pre-trained CNN on ASL images. |
+### 🔵 Advanced Feature & Model Pipeline (Root Level)
 
-### 🔵 Test / Debug Scripts
 | File | Description |
 |---|---|
-| `test_mp.py` | Tests if MediaPipe imports correctly |
-| `test_mp2.py` | Tests MediaPipe hand detection on a sample image |
-| `test_crop.py` | Tests image cropping and preprocessing |
-| `test_upb.py` | Tests the protobuf/UPB compatibility fix |
+| **`feature_extractor.py`** | Extracts a **41-dimensional** advanced geometric feature vector from MediaPipe hand landmarks. Feature groups: joint angles (15), fingertip distances (5), finger curl ratios (5), inter-fingertip distances (10), thumb opposition (4), wrist angle (2). Replaces raw (x,y,z) coordinates with scale-invariant geometric features. |
+| **`fusion_model.py`** | Builds the dual-input fusion model architecture: one branch processes 41-dim landmark features, the other processes a 128×128 cropped hand image via a lightweight CNN. Outputs fused classification over all classes. |
+| **`augmentation.py`** | Generates up to 15× augmented training samples from each image+landmark pair. Image augmentation uses albumentations (or OpenCV fallback). Landmark augmentation applies Gaussian noise, scale jitter, 2D rotation, and translation at feature level. |
+| **`collect_data_advanced.py`** | Webcam-based data collection tool. Records hand images AND simultaneously extracts and saves the 41-dim landmark feature vectors for each captured frame. Organises into `data/images/{LETTER}/` and `data/landmarks/{LETTER}/`. |
+| **`train_advanced.py`** | Full training pipeline: loads paired images + landmark .npy files, augments 8× per sample, trains the dual-input fusion model (Phase 1), performs hard negative mining on confused classes (A/E/M/N/S/T/G/H), and retrains with oversampled hard negatives (Phase 2). Saves best model to `files/model/asl_fusion_model.h5`. |
+
+### 🔵 Utility & Data Setup (files/)
+
+| File | Description |
+|---|---|
+| **`files/setup_data.py`** | Downloads ASL dataset from Kaggle. Organises into `data/train/` and `data/val/`. |
 
 ---
 
@@ -110,38 +98,48 @@ Gesture_ASL_Regconization-main/
 ### 1. 🖐️ Hand Landmark Extraction — MediaPipe
 - **MediaPipe Hands** detects **21 keypoints** (landmarks) on the hand
 - Each landmark has (x, y, z) coordinates
-- Used in both live video and static image mode
+- Used in both live video and static image (snapshot) mode
 
-### 2. 📐 93-Dimensional Feature Vector
-The model does NOT see pixel images — it sees a hand-crafted feature vector:
+### 2. 📐 41-Dimensional Advanced Feature Vector
+The current production model uses a hand-crafted **geometric, scale-invariant** feature vector:
 
 | Feature Group | Dimensions | What It Captures |
 |---|---|---|
-| Landmark positions (normalized) | 63-dim | All 21 joints relative to wrist, scale-normalized |
-| Joint angles | 10-dim | Finger bend angles (rotation-invariant) |
-| Fingertip distances | 8-dim | How far each fingertip is from palm center |
-| Thumb position | 5-dim | Where thumb sits relative to fist (separates A/S/T/I) |
-| Pinch gaps | 7-dim | Thumb-to-fingertip gaps (separates C/O/D/G/F) |
-| **Total** | **93-dim** | |
+| Joint angles (normalized) | 15-dim | Bend at each of 3 joints × 5 fingers |
+| Fingertip distances | 5-dim | Distance from each fingertip to palm centre (scale-normalized) |
+| Finger curl ratios | 5-dim | 0 = curled, 1 = extended (straight/chain length ratio) |
+| Inter-fingertip distances | 10-dim | All C(5,2)=10 pairwise fingertip gaps |
+| Thumb opposition | 4-dim | Thumb tip distance to each finger's PIP joint |
+| Wrist angle | 2-dim | Roll and pitch of hand orientation |
+| **Total** | **41-dim** | |
 
-### 3. 🤖 Dense Neural Network (DNN)
-```
-Input (93) → Dense(256, ReLU) → BN → Dropout(0.4)
-           → Dense(128, ReLU) → BN → Dropout(0.3)
-           → Dense(64, ReLU)
-           → Dense(28, Softmax)   ← 28 classes
-```
-- Optimizer: Adam (lr=0.001)
-- Loss: Sparse Categorical Crossentropy
-- Callbacks: EarlyStopping, ReduceLROnPlateau
-- Oversampling on hard classes: A, S, E, T, M, N, C, O (×3)
+> **Legacy model** (fallback): uses 93-dim raw landmark + angle + distance + thumb + pinch features.
 
-### 4. 📏 Geometric Override Rules
-Hard-coded geometry rules to fix common confusions:
-- `A + pinky extended → I`
-- `I + pinky NOT extended → A`
-- `O + large thumb-index gap → C`
-- `C + small thumb-index gap → O`
+### 3. 🤖 Dual-Input Fusion Model
+```
+Input A: 41-dim features → Dense branch
+Input B: 128×128 image  → CNN branch (Conv2D + pooling layers)
+Both branches → Concatenated → Dense → Softmax (n_classes)
+```
+- Combines geometric landmark features + raw image appearance
+- Trained with hard negative mining on difficult class pairs
+
+### 4. 🧪 Training Enhancements
+- **Data augmentation**: 8–15× per sample (albumentations + landmark jitter)
+- **Hard negative mining**: Oversample misclassified A/E/M/N/S/T/G/H samples ×3
+- **Class weights**: Higher penalty for confusable classes
+- **Two-phase training**: Initial fit → mine hard negatives → fine-tune
+
+### 5. ⏱️ Temporal Smoothing
+- Majority vote over last **7 frames** (need ≥5/7 agreement to show stable prediction)
+- Only runs inference when hand quality is **GOOD**
+- Prevents flickering and false positives
+
+### 6. 🏆 Hand Quality Scoring
+- **GOOD**: Hand fully in frame, good stereoscopic depth
+- **PARTIAL**: Hand at edge or flat angle to camera
+- **POOR**: Hand out of frame or not detected
+- Capture is only allowed when quality is **GOOD**
 
 ---
 
@@ -154,29 +152,20 @@ Hard-coded geometry rules to fix common confusions:
 | **Classes** | 26 letters (A–Z) + `space` + `delete` = **28 classes** |
 | **Images** | ~87,000 training images (3,000 per class) |
 | **Format** | JPG images, 200×200 pixels |
-| **Download** | Run `python setup_data.py` (needs `kaggle.json`) |
+| **Download** | Run `python files/setup_data.py` (needs `kaggle.json`) |
 
 ### Dataset Folder Structure (after setup)
 ```
 data/
 ├── train/
 │   ├── A/   (3000 images)
-│   ├── B/   (3000 images)
-│   ├── ...
-│   └── Z/   (3000 images)
-└── val/
-    ├── A/   (300 images)
-    ├── B/   (300 images)
-    └── ...
-```
-
-### Extracted Features Path
-```
-data/features/
-├── A.npy    ← 93-dim vectors for letter A
-├── B.npy
-├── ...
-└── Z.npy
+│   ├── B/
+│   └── ...
+├── val/
+│   ├── A/   (300 images)
+│   └── ...
+├── images/{LETTER}/    ← collected by collect_data_advanced.py
+└── landmarks/{LETTER}/ ← 41-dim .npy files per image
 ```
 
 ---
@@ -185,36 +174,45 @@ data/features/
 
 | File | Description |
 |---|---|
-| **`Untitled23.ipynb`** | Jupyter notebook used for training experiments, testing feature extraction, and visualizing results during development |
+| **`Untitled23.ipynb`** | Jupyter notebook used for training experiments, testing feature extraction, and visualising results during development |
 
 ---
 
 ## 🏃 How to Run
 
-### Step 1 — Install dependencies
+### Option A — Quick Start (Auto-Setup)
 ```powershell
-pip install tensorflow==2.12 mediapipe opencv-python scikit-learn numpy
+.\setup_and_run_asl.ps1
 ```
 
-### Step 2 — Download Dataset (optional, for training)
+### Option B — Manual Setup
+
+#### Step 1 — Install dependencies
+```powershell
+pip install tensorflow==2.12 mediapipe opencv-python scikit-learn numpy albumentations seaborn matplotlib
+```
+
+#### Step 2 — Download Dataset (optional, for training)
 ```powershell
 python files/setup_data.py
 ```
 
-### Step 3 — Extract Landmarks (optional, for training)
+#### Step 3 — Collect Own Training Data (optional)
 ```powershell
-python files/extract_landmarks.py --data data --out data/features
+python collect_data_advanced.py
 ```
 
-### Step 4 — Train Model (optional, if no model exists)
+#### Step 4 — Train Advanced Fusion Model (optional)
 ```powershell
-python files/train_mediapipe.py
+python train_advanced.py --data data --epochs 100 --augment 8
 ```
 
-### Step 5 — ⭐ Run the App
+#### Step 5 — ⭐ Run the Main App
 ```powershell
-& "C:\Users\pavit\AppData\Local\Programs\Python\Python310\python.exe" files/asl_app_pro.py
+python asl_app.py
 ```
+
+> The app auto-detects and loads the best available model (fusion → landmark-only → legacy 93-dim).
 
 ---
 
@@ -222,8 +220,8 @@ python files/train_mediapipe.py
 
 | Key / Button | Action |
 |---|---|
-| `C` / CAPTURE | Take photo of hand sign |
-| `SPACE` / CONFIRM | Add detected letter to word |
+| `C` / CAPTURE | Take photo of hand sign (only when hand quality = GOOD) |
+| `SPACE` / CONFIRM | Add detected letter to word (only when confidence ≥ 80%) |
 | `BACKSPACE` / DELETE | Discard snapshot, try again |
 | `ENTER` | Finalise word → add to sentence |
 | `ESC` | Clear everything |
@@ -240,8 +238,10 @@ python files/train_mediapipe.py
 | Validation Loss | 0.4410 |
 | Training Samples | 4,096 |
 | Classes | 28 |
-| Model File | `model/asl_model_20260509_182234.h5` |
+| Model File | `files/model/asl_model_20260509_182234.h5` |
 | Trained On | 2026-05-09 18:22 |
+
+> Advanced fusion model performance depends on your own collected data via `collect_data_advanced.py`.
 
 ---
 
@@ -264,8 +264,66 @@ python files/train_mediapipe.py
 | OpenCV | Latest | Webcam capture & drawing |
 | NumPy | Latest | Feature vector math |
 | scikit-learn | Latest | Label encoding, train/val split |
+| albumentations | Latest | Advanced image augmentation |
+| seaborn / matplotlib | Latest | Training plots & confusion matrix |
 | h5py | Latest | Model file compatibility |
 
 ---
 
-*Project by pavi116tra — ASL Gesture Recognition with Split-Screen Capture UX*
+## 🚀 Future Roadmap & Advanced Upgrades
+
+To push the real-world accuracy from **88% to 95%+**, the system can be upgraded using the following multi-phased roadmap. These upgrades target dataset diversity, temporal dynamics, and pipeline optimizations.
+
+### 1. 📊 Better & More Diverse Datasets
+The current Kaggle dataset is limited by single-user, single-background environments. Augmenting or transitioning to the following datasets will dramatically improve real-world robustness:
+
+| Dataset | Volume | Key Benefit & Description |
+|---|---|---|
+| **WLASL (World Level ASL)** | 21,000+ video clips | Overcomes environmental bias with hundreds of signers, adding **5–10% real-world accuracy**. |
+| **MS-ASL (Microsoft)** | 25,000 video clips | Ethnically diverse signers across multiple environments and lighting settings. |
+| **Custom Multi-Signer** | ~50 samples / letter | Collect 50 samples per letter from 3–4 different people under varied lighting using `collect_data_advanced.py`. |
+
+---
+
+### 2. 🧠 Advanced Algorithms (Motion & Graph Networks)
+ASL gestures are inherently dynamic (especially letters like **J** and **Z**). Replacing static snapshot models with temporal or skeletal graph models yields the highest performance gains:
+
+*   **MediaPipe Holistic Tracking (Drop-in Upgrade)**
+    *   *What:* Tracks face (468 pts), pose (33 pts), and hand landmarks (21 pts).
+    *   *Why:* Disambiguates subtle wrist tilt and body postures in highly similar signs (e.g., **A** vs **S** vs **E**).
+*   **Temporal Sequence Models (LSTM / Transformers)**
+    *   *What:* Processes sequential sequences of 10–15 landmark frames instead of single frames.
+    *   *Why:* Natively handles dynamic signing motion, replacing heuristic temporal smoothing.
+*   **Spatial-Temporal Graph Convolutional Networks (ST-GCN)**
+    *   *What:* Models hand joints as graph nodes and bones as edges over space and time.
+    *   *Why:* The state-of-the-art approach for skeletal gesture recognition; consistently outperforms plain Dense/CNN networks.
+
+---
+
+### 3. ⚡ Quick Wins & Production Tweaks (Current Pipeline)
+Targeted micro-optimizations that can be implemented directly on the current setup:
+
+> [!TIP]
+> **Targeted Hard-Pair Expansion:**
+> Use the confusion matrix to identify the top 5 confused pairs (e.g., **M/N**, **A/E**, **G/H**). Collect 500+ targeted extra samples specifically for these pairs. Targeted data is extremely powerful for removing classification bottlenecks.
+
+> [!NOTE]
+> **Weighted Temporal Voting:**
+> Enhance the current majority voting window (7 frames) by introducing a decay factor where more recent frames carry higher decision weight.
+
+> [!IMPORTANT]
+> **Per-User Calibration:**
+> Have the user sign 3 calibration letters upon first launching the app. Fine-tune the final dense classification layer on these 3 samples to adapt the model to their specific hand proportions, boosting local accuracy by **8–12%**.
+
+---
+
+### 🎯 Recommended Upgrade Path
+For the fastest and most efficient accuracy jump, follow this path:
+```
+WLASL Data Expansion ──> MediaPipe Holistic ──> Targeted Confusion Collection ──> 95%+ Real-World Accuracy
+```
+
+---
+
+*Project by pavi116tra — ASL Gesture Recognition with Advanced Fusion Model & Split-Screen Capture UX*
+

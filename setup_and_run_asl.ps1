@@ -44,7 +44,7 @@ foreach ($pkg in $packages) {
 # ---------------------------------------------------------------
 # 3. Run the main application
 # ---------------------------------------------------------------
-$scriptPath = "C:\Users\pavit\Downloads\Gesture_ASL_Regconization-main\Gesture_ASL_Regconization-main\files\asl_app_mediapipe.py"
+$scriptPath = "$PSScriptRoot\asl_app.py"
 
 if (Test-Path $scriptPath) {
     Write-Host "Launching the ASL MediaPipe app..." -ForegroundColor Cyan
